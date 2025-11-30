@@ -33,6 +33,17 @@ use std::os::unix::fs::OpenOptionsExt;
 const MODE_NORMAL: u32 = 0o444;
 const MODE_KEY: u32 = 0o400;
 
+/// Parse and validate RSA key size
+fn parse_rsa_bits(s: &str) -> Result<u32, String> {
+    let bits: u32 = s
+        .parse()
+        .map_err(|_| format!("'{}' is not a valid number", s))?;
+    match bits {
+        2048 | 3072 | 4096 => Ok(bits),
+        _ => Err(String::from("RSA bits must be 2048, 3072, or 4096")),
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 struct Args {
@@ -63,6 +74,10 @@ struct Args {
     /// server cert output path
     #[arg(long, default_value = "server-cert.pem")]
     cert_out: String,
+
+    /// RSA key size in bits
+    #[arg(long, default_value_t = 2048, value_parser = parse_rsa_bits)]
+    rsa_bits: u32,
 
     /// Server cert: common name
     #[arg(long, default_value = "127.0.0.1")]
@@ -172,8 +187,8 @@ fn swizzle_args(args: &mut Args) {
 }
 
 /// Generate random RSA private key
-fn generate_rsa_private_key() -> Result<PKey<Private>, ErrorStack> {
-    let rsa = Rsa::generate(2048)?;
+fn generate_rsa_private_key(bits: u32) -> Result<PKey<Private>, ErrorStack> {
+    let rsa = Rsa::generate(bits)?;
     let pkey = PKey::from_rsa(rsa)?;
     Ok(pkey)
 }
@@ -442,11 +457,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let basepath = Path::new(&args.out_dir);
 
     // Generate root CA key and certificate (Steps 1 & 2)
-    let ca_key = generate_rsa_private_key()?;
+    let ca_key = generate_rsa_private_key(args.rsa_bits)?;
     let ca_cert = create_root_ca_certificate(&args, &ca_key)?;
 
     // Generate server key and CSR (Steps 3 & 4)
-    let server_key = generate_rsa_private_key()?;
+    let server_key = generate_rsa_private_key(args.rsa_bits)?;
     let server_csr = generate_web_server_csr(&args, &server_key)?;
 
     // Sign the server CSR with the root CA (Step 5)

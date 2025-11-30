@@ -350,3 +350,120 @@ fn test_csr_output_when_requested() {
         String::from_utf8_lossy(&csr_check.stderr)
     );
 }
+
+#[test]
+fn test_default_rsa_key_size_is_2048() {
+    let (temp_dir, output) = run_cert_generator(&[]);
+    assert!(
+        output.status.success(),
+        "Binary failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Check server key size using openssl
+    let key_info = Command::new("openssl")
+        .args([
+            "rsa",
+            "-in",
+            temp_dir.path().join("server-key.pem").to_str().unwrap(),
+            "-text",
+            "-noout",
+        ])
+        .output()
+        .expect("Failed to run openssl rsa command");
+
+    let key_text = String::from_utf8_lossy(&key_info.stdout);
+    assert!(
+        key_text.contains("Private-Key: (2048 bit")
+            || key_text.contains("RSA Private-Key: (2048 bit"),
+        "Default RSA key should be 2048 bits.\nKey info:\n{}",
+        key_text
+    );
+}
+
+#[test]
+fn test_rsa_key_size_3072() {
+    let (temp_dir, output) = run_cert_generator(&["--rsa-bits", "3072"]);
+    assert!(
+        output.status.success(),
+        "Binary failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Check server key size
+    let key_info = Command::new("openssl")
+        .args([
+            "rsa",
+            "-in",
+            temp_dir.path().join("server-key.pem").to_str().unwrap(),
+            "-text",
+            "-noout",
+        ])
+        .output()
+        .expect("Failed to run openssl rsa command");
+
+    let key_text = String::from_utf8_lossy(&key_info.stdout);
+    assert!(
+        key_text.contains("Private-Key: (3072 bit")
+            || key_text.contains("RSA Private-Key: (3072 bit"),
+        "RSA key should be 3072 bits when --rsa-bits 3072 is specified.\nKey info:\n{}",
+        key_text
+    );
+}
+
+#[test]
+fn test_rsa_key_size_4096() {
+    let (temp_dir, output) = run_cert_generator(&["--rsa-bits", "4096"]);
+    assert!(
+        output.status.success(),
+        "Binary failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Check server key size
+    let key_info = Command::new("openssl")
+        .args([
+            "rsa",
+            "-in",
+            temp_dir.path().join("server-key.pem").to_str().unwrap(),
+            "-text",
+            "-noout",
+        ])
+        .output()
+        .expect("Failed to run openssl rsa command");
+
+    let key_text = String::from_utf8_lossy(&key_info.stdout);
+    assert!(
+        key_text.contains("Private-Key: (4096 bit")
+            || key_text.contains("RSA Private-Key: (4096 bit"),
+        "RSA key should be 4096 bits when --rsa-bits 4096 is specified.\nKey info:\n{}",
+        key_text
+    );
+}
+
+#[test]
+fn test_invalid_rsa_key_size_rejected() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_self-signed-cert"))
+        .args([
+            "-o",
+            temp_dir.path().to_str().unwrap(),
+            "--rsa-bits",
+            "1024",
+        ])
+        .output()
+        .expect("Failed to execute binary");
+
+    assert!(
+        !output.status.success(),
+        "Binary should reject invalid RSA key size (1024)"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("2048") || stderr.contains("3072") || stderr.contains("4096"),
+        "Error message should mention valid key sizes.\nStderr:\n{}",
+        stderr
+    );
+}
