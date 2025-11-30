@@ -14,6 +14,9 @@ clap = { version = "4", features = ["derive"] }
 openssl = "0.10"
 zip = { version = "0.6", default-features = false, features = ["time", "deflate"] }
 
+[dev-dependencies]
+tempfile = "3"
+
 [profile.release]
 lto = true
 
