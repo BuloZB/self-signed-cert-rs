@@ -229,6 +229,15 @@ fn create_root_ca_certificate(args: &Args, pkey: &PKey<Private>) -> Result<X509,
             .build()?,
     )?;
 
+    // Extension: keyUsage (required for CA certificates per RFC 5280)
+    builder.append_extension(
+        openssl::x509::extension::KeyUsage::new()
+            .critical()
+            .key_cert_sign()
+            .crl_sign()
+            .build()?,
+    )?;
+
     // Generate a serial number for the certificate.
     let mut serial = BigNum::new()?;
     serial.rand(128, MsbOption::MAYBE_ZERO, false)?;
@@ -312,6 +321,13 @@ fn sign_server_csr(
             .digital_signature()
             .key_encipherment()
             .data_encipherment()
+            .build()?,
+    )?;
+
+    // Extension: extendedKeyUsage (required by modern TLS validators)
+    builder.append_extension(
+        openssl::x509::extension::ExtendedKeyUsage::new()
+            .server_auth()
             .build()?,
     )?;
 
