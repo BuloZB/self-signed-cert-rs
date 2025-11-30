@@ -231,7 +231,14 @@ fn test_server_cert_has_key_usage() {
     let cert_path = temp_dir.path().join("server-cert.pem");
     let cert_text = get_cert_text(&cert_path);
 
-    // Check for keyUsage extension with expected values
+    // Check for keyUsage extension marked critical (per RFC 5280)
+    assert!(
+        cert_text.contains("X509v3 Key Usage: critical"),
+        "Server certificate must have critical keyUsage extension.\nCertificate:\n{}",
+        cert_text
+    );
+
+    // Check for expected keyUsage values
     assert!(
         cert_text.contains("Digital Signature"),
         "Server certificate must have Digital Signature in keyUsage.\nCertificate:\n{}",

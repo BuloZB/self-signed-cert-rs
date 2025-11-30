@@ -314,9 +314,10 @@ fn sign_server_csr(
     let ext_basic = openssl::x509::extension::BasicConstraints::new().build()?;
     builder.append_extension(ext_basic)?;
 
-    // Extension: keyUsage
+    // Extension: keyUsage (marked critical per RFC 5280)
     builder.append_extension(
         openssl::x509::extension::KeyUsage::new()
+            .critical()
             .non_repudiation()
             .digital_signature()
             .key_encipherment()
